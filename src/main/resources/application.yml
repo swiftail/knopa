@@ -1,0 +1,6 @@
+micronaut:
+  application:
+    name: knopa
+knopa:
+  token:
+  name: knopa

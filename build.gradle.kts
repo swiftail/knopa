@@ -12,12 +12,10 @@ repositories {
 
 dependencies {
     annotationProcessor("org.projectlombok:lombok")
-    annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
     compileOnly("org.projectlombok:lombok")
     implementation("org.telegram:telegrambots:6.9.7.1")
     implementation("ch.qos.logback:logback-classic")
     implementation("org.yaml:snakeyaml")
-    implementation("io.micronaut.serde:micronaut-serde-jackson")
 }
 
 application {

@@ -111,7 +111,7 @@ public class KnopaBot extends TelegramLongPollingBot {
                 name = "Стандартная резня";
             }
             var id = UUID.randomUUID();
-            System.out.println(name);
+
             var message = new SendMessage();
             message.setChatId(update.getMessage().getChatId());
             message.setText("\uD83D\uDD2A Резня началась: %s".formatted(name));

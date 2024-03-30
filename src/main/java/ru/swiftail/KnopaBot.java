@@ -9,13 +9,11 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.MaybeInaccessibleMessage;
 import ru.swiftail.dto.PollDto;
 import ru.swiftail.dto.UserMentionDto;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import static java.util.Collections.emptyList;
@@ -50,7 +48,7 @@ public class KnopaBot extends TelegramLongPollingBot {
     }
 
     @SneakyThrows
-    public void updateMention(UserMentionDto mention, String action, UUID pollId, org.telegram.telegrambots.meta.api.objects.CallbackQuery callback){
+    public void updateMention(UserMentionDto mention, String action, UUID pollId, MaybeInaccessibleMessage message){
         synchronized (knopaDB) {
             var poll = knopaDB.getPoll(pollId);
 
@@ -65,8 +63,8 @@ public class KnopaBot extends TelegramLongPollingBot {
 
                 var editMessage = new EditMessageText();
                 editMessage.enableMarkdown(true);
-                editMessage.setChatId(callback.getMessage().getChatId());
-                editMessage.setMessageId(callback.getMessage().getMessageId());
+                editMessage.setChatId(message.getChatId());
+                editMessage.setMessageId(message.getMessageId());
                 editMessage.setText(newPoll.buildMessageText());
                 editMessage.setReplyMarkup(buildMarkup(pollId));
                 executeAsync(editMessage);
@@ -77,8 +75,9 @@ public class KnopaBot extends TelegramLongPollingBot {
     @Override
     @SneakyThrows
     public void onUpdateReceived(Update update) {
-        var callback = update.getCallbackQuery();
         if (update.hasCallbackQuery()) {
+            var callback = update.getCallbackQuery();
+            var message = callback.getMessage();
             var matcher = CALLBACK_DATA_PATTERN.matcher(callback.getData());
 
             if (!matcher.matches()) {
@@ -96,7 +95,7 @@ public class KnopaBot extends TelegramLongPollingBot {
                         .firstName(callback.getFrom().getFirstName())
                         .lastName(callback.getFrom().getLastName())
                         .build();
-            updateMention(mention, action, pollId, callback);
+            updateMention(mention, action, pollId, message);
             var callbackQuery = new AnswerCallbackQuery();
             callbackQuery.setCallbackQueryId(callback.getId());
             callbackQuery.setText("Ok");
@@ -112,13 +111,13 @@ public class KnopaBot extends TelegramLongPollingBot {
                 name = "Стандартная резня";
             }
             var id = UUID.randomUUID();
-
+            System.out.println(name);
             var message = new SendMessage();
             message.setChatId(update.getMessage().getChatId());
             message.setText("\uD83D\uDD2A Резня началась: %s".formatted(name));
             message.setReplyMarkup(buildMarkup(id));
 
-            execute(message);
+            var newMessage = execute(message);
             
             knopaDB.updatePoll(
                     PollDto.builder()
@@ -127,14 +126,14 @@ public class KnopaBot extends TelegramLongPollingBot {
                             .queue(emptyList())
                             .build()
             );
-            if (name == "коленки Вити") {	
+            if (Objects.equals(name, "коленки Вити")) {
                 var action = "enter";
                 var maxim = UserMentionDto.builder()
                             .userId(568977897L)
                             .firstName("Любимый")
                             .lastName("Максимка")
                             .build();
-                updateMention(maxim, action, id, callback);
+                updateMention(maxim, action, id, newMessage);
             }
         }
     }

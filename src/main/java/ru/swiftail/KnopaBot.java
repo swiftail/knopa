@@ -49,11 +49,36 @@ public class KnopaBot extends TelegramLongPollingBot {
         ));
     }
 
+    @SneakyThrows
+    public void updateMention(UserMentionDto mention, String action, UUID pollId, org.telegram.telegrambots.meta.api.objects.CallbackQuery callback){
+        synchronized (knopaDB) {
+            var poll = knopaDB.getPoll(pollId);
+
+            var newQueue = getNewQueue(poll, action, mention);
+
+            if (newQueue != null) {
+                var newPoll = poll.toBuilder()
+                        .queue(newQueue)
+                        .build();
+
+                knopaDB.updatePoll(newPoll);
+
+                var editMessage = new EditMessageText();
+                editMessage.enableMarkdown(true);
+                editMessage.setChatId(callback.getMessage().getChatId());
+                editMessage.setMessageId(callback.getMessage().getMessageId());
+                editMessage.setText(newPoll.buildMessageText());
+                editMessage.setReplyMarkup(buildMarkup(pollId));
+                executeAsync(editMessage);
+            }
+        }
+    }
+
     @Override
     @SneakyThrows
     public void onUpdateReceived(Update update) {
+        var callback = update.getCallbackQuery();
         if (update.hasCallbackQuery()) {
-            var callback = update.getCallbackQuery();
             var matcher = CALLBACK_DATA_PATTERN.matcher(callback.getData());
 
             if (!matcher.matches()) {
@@ -66,34 +91,12 @@ public class KnopaBot extends TelegramLongPollingBot {
             if (!Set.of("enter", "leave", "down").contains(action)) {
                 return;
             }
-
-            synchronized (knopaDB) {
-                var poll = knopaDB.getPoll(pollId);
-
-                var mention = UserMentionDto.builder()
+            var mention = UserMentionDto.builder()
                         .userId(callback.getFrom().getId())
                         .firstName(callback.getFrom().getFirstName())
                         .lastName(callback.getFrom().getLastName())
                         .build();
-
-                var newQueue = getNewQueue(poll, action, mention);
-
-                if (newQueue != null) {
-                    var newPoll = poll.toBuilder()
-                            .queue(newQueue)
-                            .build();
-
-                    knopaDB.updatePoll(newPoll);
-
-                    var editMessage = new EditMessageText();
-                    editMessage.enableMarkdown(true);
-                    editMessage.setChatId(callback.getMessage().getChatId());
-                    editMessage.setMessageId(callback.getMessage().getMessageId());
-                    editMessage.setText(newPoll.buildMessageText());
-                    editMessage.setReplyMarkup(buildMarkup(pollId));
-                    executeAsync(editMessage);
-                }
-            }
+            updateMention(mention, action, pollId, callback);
             var callbackQuery = new AnswerCallbackQuery();
             callbackQuery.setCallbackQueryId(callback.getId());
             callbackQuery.setText("Ok");
@@ -126,33 +129,12 @@ public class KnopaBot extends TelegramLongPollingBot {
             );
 			if (name == "коленки Вити") {	
 				var action = "enter";
-				synchronized (knopaDB) {
-					var poll = knopaDB.getPoll(pollId);
-
-					var maxim = UserMentionDto.builder()
-							.userId(568977897)
-							.firstName("Maxim")
-							.lastName("Besogonov")
+                var maxim = UserMentionDto.builder()
+							.userId(568977897L)
+							.firstName("Любимый")
+							.lastName("Максимка")
 							.build();
-
-					var newQueue = getNewQueue(poll, action, maxim);
-
-					if (newQueue != null) {
-						var newPoll = poll.toBuilder()
-								.queue(newQueue)
-								.build();
-
-						knopaDB.updatePoll(newPoll);
-
-						var editMessage = new EditMessageText();
-						editMessage.enableMarkdown(true);
-						editMessage.setChatId(callback.getMessage().getChatId());
-						editMessage.setMessageId(callback.getMessage().getMessageId());
-						editMessage.setText(newPoll.buildMessageText());
-						editMessage.setReplyMarkup(buildMarkup(pollId));
-						executeAsync(editMessage);
-					}
-				}
+				updateMention(maxim, action, id, callback);
             }
         }
     }

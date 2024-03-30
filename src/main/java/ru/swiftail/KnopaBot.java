@@ -160,8 +160,9 @@ public class KnopaBot extends TelegramLongPollingBot {
                     var index = queue.indexOf(mention);
                     if (index != queue.size() - 1) {
                         var nextMention = queue.get(index + 1);
+                        var currMention = queue.get(index);
                         queue.set(index, nextMention);
-                        queue.set(index + 1, mention);
+                        queue.set(index + 1, currMention);
                         newQueue = queue;
                     }
                 }

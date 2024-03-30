@@ -116,7 +116,7 @@ public class KnopaBot extends TelegramLongPollingBot {
             message.setReplyMarkup(buildMarkup(id));
 
             execute(message);
-
+            
             knopaDB.updatePoll(
                     PollDto.builder()
                             .id(id)
@@ -124,6 +124,36 @@ public class KnopaBot extends TelegramLongPollingBot {
                             .queue(emptyList())
                             .build()
             );
+			if (name == "коленки Вити") {	
+				var action = "enter";
+				synchronized (knopaDB) {
+					var poll = knopaDB.getPoll(pollId);
+
+					var maxim = UserMentionDto.builder()
+							.userId(568977897)
+							.firstName("Maxim")
+							.lastName("Besogonov")
+							.build();
+
+					var newQueue = getNewQueue(poll, action, maxim);
+
+					if (newQueue != null) {
+						var newPoll = poll.toBuilder()
+								.queue(newQueue)
+								.build();
+
+						knopaDB.updatePoll(newPoll);
+
+						var editMessage = new EditMessageText();
+						editMessage.enableMarkdown(true);
+						editMessage.setChatId(callback.getMessage().getChatId());
+						editMessage.setMessageId(callback.getMessage().getMessageId());
+						editMessage.setText(newPoll.buildMessageText());
+						editMessage.setReplyMarkup(buildMarkup(pollId));
+						executeAsync(editMessage);
+					}
+				}
+            }
         }
     }
 

@@ -127,14 +127,14 @@ public class KnopaBot extends TelegramLongPollingBot {
                             .queue(emptyList())
                             .build()
             );
-			if (name == "коленки Вити") {	
-				var action = "enter";
+            if (name == "коленки Вити") {	
+                var action = "enter";
                 var maxim = UserMentionDto.builder()
-							.userId(568977897L)
-							.firstName("Любимый")
-							.lastName("Максимка")
-							.build();
-				updateMention(maxim, action, id, callback);
+                            .userId(568977897L)
+                            .firstName("Любимый")
+                            .lastName("Максимка")
+                            .build();
+                updateMention(maxim, action, id, callback);
             }
         }
     }

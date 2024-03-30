@@ -9,13 +9,11 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.MaybeInaccessibleMessage;
 import ru.swiftail.dto.PollDto;
 import ru.swiftail.dto.UserMentionDto;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import static java.util.Collections.emptyList;
@@ -49,11 +47,37 @@ public class KnopaBot extends TelegramLongPollingBot {
         ));
     }
 
+    @SneakyThrows
+    public void updateMention(UserMentionDto mention, String action, UUID pollId, MaybeInaccessibleMessage message){
+        synchronized (knopaDB) {
+            var poll = knopaDB.getPoll(pollId);
+
+            var newQueue = getNewQueue(poll, action, mention);
+
+            if (newQueue != null) {
+                var newPoll = poll.toBuilder()
+                        .queue(newQueue)
+                        .build();
+
+                knopaDB.updatePoll(newPoll);
+
+                var editMessage = new EditMessageText();
+                editMessage.enableMarkdown(true);
+                editMessage.setChatId(message.getChatId());
+                editMessage.setMessageId(message.getMessageId());
+                editMessage.setText(newPoll.buildMessageText());
+                editMessage.setReplyMarkup(buildMarkup(pollId));
+                executeAsync(editMessage);
+            }
+        }
+    }
+
     @Override
     @SneakyThrows
     public void onUpdateReceived(Update update) {
         if (update.hasCallbackQuery()) {
             var callback = update.getCallbackQuery();
+            var message = callback.getMessage();
             var matcher = CALLBACK_DATA_PATTERN.matcher(callback.getData());
 
             if (!matcher.matches()) {
@@ -66,34 +90,12 @@ public class KnopaBot extends TelegramLongPollingBot {
             if (!Set.of("enter", "leave", "down").contains(action)) {
                 return;
             }
-
-            synchronized (knopaDB) {
-                var poll = knopaDB.getPoll(pollId);
-
-                var mention = UserMentionDto.builder()
+            var mention = UserMentionDto.builder()
                         .userId(callback.getFrom().getId())
                         .firstName(callback.getFrom().getFirstName())
                         .lastName(callback.getFrom().getLastName())
                         .build();
-
-                var newQueue = getNewQueue(poll, action, mention);
-
-                if (newQueue != null) {
-                    var newPoll = poll.toBuilder()
-                            .queue(newQueue)
-                            .build();
-
-                    knopaDB.updatePoll(newPoll);
-
-                    var editMessage = new EditMessageText();
-                    editMessage.enableMarkdown(true);
-                    editMessage.setChatId(callback.getMessage().getChatId());
-                    editMessage.setMessageId(callback.getMessage().getMessageId());
-                    editMessage.setText(newPoll.buildMessageText());
-                    editMessage.setReplyMarkup(buildMarkup(pollId));
-                    executeAsync(editMessage);
-                }
-            }
+            updateMention(mention, action, pollId, message);
             var callbackQuery = new AnswerCallbackQuery();
             callbackQuery.setCallbackQueryId(callback.getId());
             callbackQuery.setText("Ok");
@@ -115,8 +117,8 @@ public class KnopaBot extends TelegramLongPollingBot {
             message.setText("\uD83D\uDD2A Резня началась: %s".formatted(name));
             message.setReplyMarkup(buildMarkup(id));
 
-            execute(message);
-
+            var newMessage = execute(message);
+            
             knopaDB.updatePoll(
                     PollDto.builder()
                             .id(id)
@@ -124,6 +126,15 @@ public class KnopaBot extends TelegramLongPollingBot {
                             .queue(emptyList())
                             .build()
             );
+            if (Objects.equals(name, "коленки Вити")) {
+                var action = "enter";
+                var maxim = UserMentionDto.builder()
+                            .userId(568977897L)
+                            .firstName("Любимый")
+                            .lastName("Максимка")
+                            .build();
+                updateMention(maxim, action, id, newMessage);
+            }
         }
     }
 
@@ -149,8 +160,9 @@ public class KnopaBot extends TelegramLongPollingBot {
                     var index = queue.indexOf(mention);
                     if (index != queue.size() - 1) {
                         var nextMention = queue.get(index + 1);
+                        var currMention = queue.get(index);
                         queue.set(index, nextMention);
-                        queue.set(index + 1, mention);
+                        queue.set(index + 1, currMention);
                         newQueue = queue;
                     }
                 }
